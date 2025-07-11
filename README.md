@@ -26,7 +26,7 @@ Follow these steps to install and run the project:
 
 1. Clone the repository:
 ```commandline
-git clone https://github.com/mkwatson/chat_any_site.git
+git clone https://github.com/sc30ash/chat_any_site.git
 ```
 
 2. Change into the project directory:
