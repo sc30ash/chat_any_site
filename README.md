@@ -72,8 +72,7 @@ In this demo I'm passing along the sitemap to the [LangChain Documentation](http
 LangChain was released on Oct 2022. I'm also using GPT-4, which was only trained on data up to Sep 2021. 
 So, the model, as is, does not know about LangChain. Nevertheless, I'm able to get expert responses about LangChain.
 
-![Chat Any Site Demo Gif](img/demo.gif)
-[Higher quality YouTube version](https://youtu.be/vAWgbTUTuRc)
+![Chat Any Site Demo Gif](demo.gif)
 
 ## Known Limitation
 
