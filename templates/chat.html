@@ -1,186 +1,215 @@
-<!DOCTYPE html>
-<html>
+﻿<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Chat with {{ sitemap_url }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f8fa;
-        }
-        .header {
-            background: white;
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            margin-bottom: 25px;
-        }
-        .chat-container {
-            background: white;
-            border-radius: 10px;
-            padding: 30px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            margin-bottom: 25px;
-            min-height: 400px;
-        }
-        .info-panel {
-            background-color: #f7fafc;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            margin-bottom: 25px;
-        }
-        .info-row {
-            display: flex;
-            margin-bottom: 10px;
-        }
-        .info-label {
-            font-weight: 600;
-            color: #4a5568;
-            min-width: 150px;
-        }
-        .info-value {
-            color: #2d3748;
-        }
-        .message-container {
-            margin-bottom: 30px;
-        }
-        .user-message {
-            background-color: #ebf8ff;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border-left: 4px solid #4299e1;
-        }
-        .assistant-message {
-            background-color: #f0fff4;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            border-left: 4px solid #48bb78;
-        }
-        .error-message {
-            background-color: #fff5f5;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            border-left: 4px solid #e53e3e;
-        }
-        .chat-form {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-        #question {
-            flex-grow: 1;
-            padding: 15px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-        #question:focus {
-            border-color: #4299e1;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
-        }
-        .btn {
-            background-color: #4299e1;
-            color: white;
-            border: none;
-            padding: 0 25px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .btn:hover {
-            background-color: #3182ce;
-        }
-        .btn-change {
-            background-color: #e2e8f0;
-            color: #2d3748;
-            padding: 12px 20px;
-        }
-        .btn-change:hover {
-            background-color: #cbd5e0;
-        }
-        .actions {
-            display: flex;
-            justify-content: space-between;
-        }
-        .loading {
-            text-align: center;
-            padding: 30px;
-            color: #718096;
-        }
-        .loading:after {
-            content: '...';
-            animation: dots 1.5s infinite;
-        }
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
-        }
-    </style>
+  <meta charset="utf-8" />
+  <title>ChatAnySite — Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --error: #b91c1c;
+      --info: #1e3a8a;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+
+    .wrap { max-width: 880px; padding: 24px; margin: 0 auto; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .title { font-size: 22px; font-weight: 700; letter-spacing: 0.2px; }
+    .meta { font-size: 14px; color: var(--muted); }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgb(17 24 39 / 0.04);
+      margin-bottom: 16px;
+    }
+
+    .info, .error {
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      border: 1px solid;
+      background: #fff;
+    }
+    .info { color: var(--info); border-color: #bfdbfe; background: #eff6ff; }
+    .error { color: var(--error); border-color: #fecaca; background: #fef2f2; }
+
+    .kvs {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 8px 16px;
+      font-size: 14px;
+    }
+    .kvs .k { color: var(--muted); }
+    .kvs .v { font-weight: 600; overflow-wrap: anywhere; }
+
+    form.chat { display: grid; gap: 12px; margin-top: 6px; }
+    label { font-weight: 600; font-size: 14px; margin-bottom: 6px; color: #374151; display: inline-block; }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 12px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      font-size: 15px;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    button {
+      appearance: none; border: 0; background: var(--primary); color: #fff;
+      padding: 10px 16px; border-radius: 10px; font-weight: 700; cursor: pointer;
+      transition: background-color .15s ease; font-size: 15px;
+    }
+    button:hover { background: var(--primary-dark); }
+
+    .response {
+      margin-top: 8px; padding: 16px; border: 1px solid var(--border);
+      border-radius: 12px; background: #fafafa; overflow: hidden;
+    }
+    /* ChatGPT-like styling */
+    .response h1, .response h2, .response h3 { margin: 1.25em 0 .5em; line-height: 1.25; }
+    .response p { margin: .5em 0; }
+    .response ul, .response ol { padding-left: 1.2em; }
+    .response code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: .95em; padding: 2px 4px; border: 1px solid var(--border); border-radius: 6px; background: #f5f5f5;
+    }
+    .response pre { margin: .75em 0; padding: 0; background: transparent; overflow: auto; }
+    .response pre code {
+      display: block; border-radius: 10px; padding: 14px; border: 1px solid var(--border);
+      background: #0b1020; color: #f3f4f6; line-height: 1.5; overflow-x: auto; white-space: pre;
+    }
+
+    .footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 24px; }
+
+    .row { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 900px) { .row { grid-template-columns: 320px 1fr; align-items: start; } }
+    .muted { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Chat with Your Site</h1>
-        
-        <div class="info-panel">
-            <div class="info-row">
-                <div class="info-label">Sitemap:</div>
-                <div class="info-value">{{ sitemap_url }}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">Chat Model:</div>
-                <div class="info-value">{{ chat_model }}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-label">Embedding Model:</div>
-                <div class="info-value">{{ embedding_model }}</div>
-            </div>
+  <div class="wrap">
+
+    <header>
+      <div class="title">ChatAnySite — Chat</div>
+      <div class="meta">
+        {% if sitemap_url %}Sitemap loaded{% else %}No sitemap{% endif %}
+      </div>
+    </header>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="row">
+      <!-- Left: Current configuration -->
+      <aside class="card">
+        <h3 style="margin-top: 0">Current Configuration</h3>
+        <div class="kvs" aria-label="Current configuration key values">
+          <div class="k">Sitemap</div><div class="v">{{ sitemap_url or '—' }}</div>
         </div>
-    </div>
-    
-    <div class="chat-container">
-        {% if error %}
-            <div class="error-message">
-                <strong>Error:</strong> {{ error }}
-            </div>
-        {% endif %}
-        
-        {% if response %}
-            <div class="message-container">
-                <div class="user-message">
-                    <strong>You:</strong> {{ request.form['question'] }}
-                </div>
-                <div class="assistant-message">
-                    <strong>Assistant:</strong> {{ response }}
-                </div>
-            </div>
-        {% else %}
-            <div class="loading">
-                Ready to chat about {{ sitemap_url }}
-            </div>
-        {% endif %}
-        
-        <form method="POST" class="chat-form">
-            <input type="text" id="question" name="question" 
-                   placeholder="Ask something about the website..." required>
-            <button type="submit" class="btn">Send</button>
-        </form>
-        
-        <div class="actions">
-            <form method="GET" action="{{ url_for('index') }}">
-                <button type="submit" class="btn btn-change">Change Settings</button>
-            </form>
+        <div class="muted">These come from your previous setup on the home page.</div>
+        <div class="actions" style="margin-top:12px;">
+          <a href="{{ url_for('index') }}" style="text-decoration:none;">
+            <button type="button" title="Back to setup">Back to Setup</button>
+          </a>
         </div>
+      </aside>
+
+      <!-- Right: Chat panel -->
+      <main>
+        <div class="card">
+          <h3 style="margin-top:0;">Ask a question</h3>
+          <form method="POST" class="chat">
+            <div>
+              <label for="question">Your question</label>
+              <textarea id="question" name="question" placeholder="Ask about the site’s content…" required></textarea>
+            </div>
+            <div class="actions">
+              <button type="submit">Send</button>
+            </div>
+          </form>
+
+          {% if error %}
+            <div class="error" role="alert">{{ error }}</div>
+          {% endif %}
+
+          {% if response %}
+            <!-- Hidden raw response (server-side) -->
+            <div id="response-raw" style="display:none;">{{ response }}</div>
+
+            <!-- Fallback plain-text (visible by default; JS will upgrade to Markdown-rendered) -->
+            <div class="response" id="response-fallback">
+              <pre><code>{{ response | e }}</code></pre>
+            </div>
+
+            <!-- Pretty-printed (Markdown-rendered) output will replace fallback if scripts load -->
+            <div class="response" id="response-rendered" style="display:none;" aria-live="polite"></div>
+          {% else %}
+            <div class="info">
+              Ask a question above to get a response. Answers will appear here with **bold**, _italics_, lists, and code blocks rendered like ChatGPT.
+            </div>
+          {% endif %}
+        </div>
+      </main>
     </div>
+
+    <div class="footer">ChatAnySite &middot; Provide a sitemap, embed, and chat with any site’s content.</div>
+  </div>
+
+  {% if response %}
+    <!-- Load DOMPurify + Marked (no integrity to avoid SRI mismatch issues) -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script>
+      (function () {
+        try {
+          // Configure marked (optional)
+          marked.use({ breaks: true, gfm: true });
+
+          var rawEl = document.getElementById('response-raw');
+          var raw = rawEl ? rawEl.textContent : '';
+          var renderedEl = document.getElementById('response-rendered');
+          var fallbackEl = document.getElementById('response-fallback');
+
+          if (raw && renderedEl) {
+            var html = DOMPurify.sanitize(marked.parse(raw), { USE_PROFILES: { html: true } });
+            renderedEl.innerHTML = html;
+
+            // Swap: hide fallback, show rendered
+            if (fallbackEl) fallbackEl.style.display = 'none';
+            renderedEl.style.display = 'block';
+          }
+        } catch (e) {
+          // If anything goes wrong, keep fallback visible
+          console.error('Markdown render failed:', e);
+        }
+      }());
+    </script>
+  {% endif %}
 </body>
 </html>

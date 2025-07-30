@@ -1,4 +1,4 @@
-import os
+﻿import os
 import requests
 import json
 import hashlib
@@ -14,23 +14,6 @@ if platform.system()=='Windows':
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev_secret_key')
 app.config['SESSION_TYPE'] = 'filesystem'
-
-# Hugging Face models
-HF_MODELS = [
-    "mistralai/Mistral-7B-Instruct-v0.2",
-    "google/gemma-7b-it",
-    "meta-llama/Llama-2-7b-chat-hf",
-    "HuggingFaceH4/zephyr-7b-beta",
-    "deepseek-ai/deepseek-coder-6.7b-instruct",
-    "tiiuae/falcon-7b-instruct"
-]
-
-# Embedding models with correct API endpoints
-EMBEDDING_MODELS = [
-    "sentence-transformers/all-MiniLM-L6-v2",
-    "BAAI/bge-base-en-v1.5",
-    "intfloat/e5-large-v2"
-]
 
 EMBEDDED_SITEMAPS = set()
 
@@ -135,7 +118,7 @@ def split_text_into_chunks(text, max_chunk_size=500):
 # Global cache for document chunks
 document_cache = {}
 
-def get_embeddings(texts, model, hf_token):
+def get_embeddings(texts, hf_token):
     """Get embeddings using Hugging Face Inference API - CORRECTED"""
     # CORRECTED ENDPOINT
     url = f"https://router.huggingface.co/hf-inference/models/BAAI/bge-large-en-v1.5/pipeline/feature-extraction"
@@ -182,10 +165,10 @@ def get_embeddings(texts, model, hf_token):
     
     return all_embeddings
 
-def get_document_chunks(sitemap_url, embedding_model, hf_token):
+def get_document_chunks(sitemap_url, hf_token):
     """Get or create document chunks with caching"""
     # Create a unique hash for this sitemap
-    sitemap_hash = hashlib.sha256(f"{sitemap_url}-{embedding_model}".encode()).hexdigest()
+    sitemap_hash = hashlib.sha256(f"{sitemap_url}".encode()).hexdigest()
     
     # Check if we have it in cache
     if sitemap_hash in document_cache:
@@ -225,7 +208,7 @@ def get_document_chunks(sitemap_url, embedding_model, hf_token):
         chunk_texts = [chunk["content"] for chunk in chunks]
         
         # 3. Create embeddings
-        embeddings = get_embeddings(chunk_texts, embedding_model, hf_token)
+        embeddings = get_embeddings(chunk_texts, hf_token)
         
         # Cache results
         document_cache[sitemap_hash] = {
@@ -243,7 +226,7 @@ def get_document_chunks(sitemap_url, embedding_model, hf_token):
         error_msg = f"Error processing sitemap: {str(e)}"
         raise RuntimeError(error_msg) from e
 
-def get_query_embedding(query, model, hf_token):
+def get_query_embedding(query, hf_token):
     """Get embedding for a single query - CORRECTED"""
     # CORRECTED ENDPOINT
     url = f"https://router.huggingface.co/hf-inference/models/BAAI/bge-large-en-v1.5/pipeline/feature-extraction"
@@ -283,10 +266,10 @@ def get_query_embedding(query, model, hf_token):
     except Exception as e:
         raise RuntimeError(f"Query embedding failed: {str(e)}") from e
 
-def get_most_relevant_chunks(query, document_data, embedding_model, hf_token):
+def get_most_relevant_chunks(query, document_data, hf_token):
     """Get most relevant chunks for a query"""
     # Get query embedding
-    query_embedding = get_query_embedding(query, embedding_model, hf_token)
+    query_embedding = get_query_embedding(query, hf_token)
     
     # Calculate similarity (cosine similarity)
     embeddings = document_data["embeddings"]
@@ -323,9 +306,26 @@ def get_most_relevant_chunks(query, document_data, embedding_model, hf_token):
     top_indices = [i for _, i in similarities[:5]]
     return [document_data["chunk_texts"][i] for i in top_indices]
 
-def get_chat_response(query, context, model, hf_token):
-    """Get response using HF Router chat-completions with DeepSeek only"""
-    # Build a single user message that includes context (minimal change)
+def get_chat_response(query, context, hf_token):
+    """Get response using HF Router chat-completions with DeepSeek only and sanitize output"""
+
+    def _clean_deepseek_output(text: str) -> str:
+        # Remove <think>...</think> blocks
+        import re
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
+
+        # If the model wrote "Final Response:" or "Answer:", keep only what's after it
+        for marker in ["Final Response:", "Answer:", "Final answer:", "Final:" ]:
+            idx = text.lower().find(marker.lower())
+            if idx != -1:
+                text = text[idx + len(marker):]
+                break
+
+        # Strip common prefixes and extra whitespace
+        text = re.sub(r"^\s*Assistant:\s*", "", text, flags=re.IGNORECASE)
+        return text.strip()
+
+    # Build user message (reuse your existing context formatting)
     if context:
         context_str = "\n\n".join([f"[Context {i+1}]: {c}" for i, c in enumerate(context)])
         user_content = f"Use the following context to answer the question:\n\n{context_str}\n\nQuestion: {query}\n\nAnswer:"
@@ -338,19 +338,14 @@ def get_chat_response(query, context, model, hf_token):
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "deepseek-ai/DeepSeek-R1-0528:fireworks-ai",  # DeepSeek only
-        "messages": [
-            {"role": "user", "content": user_content}
-        ],
-        # You can keep these roughly analogous to your old params
-        "max_tokens": 1000,
+        "model": "deepseek-ai/DeepSeek-R1-0528:fireworks-ai",  # force DeepSeek
+        "messages": [{"role": "user", "content": user_content}],
         "temperature": 0.7
     }
 
     try:
         response = requests.post(api_url, headers=headers, json=payload, timeout=120)
         if response.status_code != 200:
-            # Try to extract a useful error message
             try:
                 err = response.json()
                 err_msg = err.get("error", {}).get("message") or err.get("message") or str(err)
@@ -360,23 +355,25 @@ def get_chat_response(query, context, model, hf_token):
 
         data = response.json()
 
-        # Expected: {"choices": [{"message": {"role": "assistant", "content": "..."}}, ...], ...}
-        if "choices" in data and data["choices"]:
+        # Primary path: choices[0].message.content
+        content = None
+        if isinstance(data, dict) and data.get("choices"):
             msg = data["choices"][0].get("message", {})
             content = msg.get("content")
-            if isinstance(content, str) and content.strip():
-                return content.strip()
 
-        # Fallbacks
-        if "choices" in data and data["choices"]:
-            # Sometimes providers return plain "text" instead of message.content
-            text = data["choices"][0].get("text")
-            if isinstance(text, str) and text.strip():
-                return text.strip()
+            # Some providers may put the final answer in choices[0].text
+            if not content:
+                content = data["choices"][0].get("text")
 
-        return "No response generated"
+        if not isinstance(content, str) or not content.strip():
+            return "No response generated"
+
+        # ✨ Ensure only the response text is returned
+        return _clean_deepseek_output(content)
+
     except Exception as e:
         raise RuntimeError(f"Chat API error: {str(e)}") from e
+
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -384,8 +381,6 @@ def index():
     if request.method == 'POST':
         session['hf_token'] = request.form['hf_token'].strip()
         session['sitemap_url'] = request.form['sitemap_url'].strip()
-        session['chat_model'] = request.form['chat_model'].strip()
-        session['embedding_model'] = request.form['embedding_model'].strip()
         
         if request.form['sitemap_url'] == '__new__':
             sitemap_url = request.form.get('new_sitemap', '').strip()
@@ -395,9 +390,7 @@ def index():
 
         if not validate_sitemap(session['sitemap_url']):
             flash("Invalid sitemap URL. Must be a valid XML sitemap.", "error")
-            return render_template('index.html', 
-                            hf_models=HF_MODELS, 
-                            embedding_models=EMBEDDING_MODELS,
+            return render_template('index.html',
                             cached_sitemaps=list(EMBEDDED_SITEMAPS)
                         )
 
@@ -406,19 +399,14 @@ def index():
         try:
             get_document_chunks(
                 session['sitemap_url'],
-                session['embedding_model'],
                 session['hf_token']
             )
             return redirect(url_for('chat'))
         except Exception as e:
             flash(f"Error loading sitemap: {str(e)}", "error")
-            return render_template('index.html', 
-                                  hf_models=HF_MODELS, 
-                                  embedding_models=EMBEDDING_MODELS)
+            return render_template('index.html')
     
-    return render_template('index.html', 
-                          hf_models=HF_MODELS, 
-                          embedding_models=EMBEDDING_MODELS)
+    return render_template('index.html')
 
 @app.route('/chat', methods=['GET', 'POST'])
 def chat():
@@ -434,7 +422,6 @@ def chat():
             # Get document chunks from cache
             document_data = get_document_chunks(
                 session['sitemap_url'],
-                session['embedding_model'],
                 session['hf_token']
             )
             
@@ -442,7 +429,6 @@ def chat():
             context = get_most_relevant_chunks(
                 query,
                 document_data,
-                session['embedding_model'],
                 session['hf_token']
             )
             
@@ -450,7 +436,6 @@ def chat():
             response = get_chat_response(
                 query,
                 context,
-                session['chat_model'],
                 session['hf_token']
             )
         except Exception as e:
@@ -458,8 +443,6 @@ def chat():
     
     return render_template('chat.html', 
                           sitemap_url=session['sitemap_url'],
-                          chat_model=session['chat_model'],
-                          embedding_model=session['embedding_model'],
                           response=response,
                           error=error)
 
