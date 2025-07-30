@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ChatAnySite Setup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f5f8fa;
+        }
+        .form-container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2d3748;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            border-color: #4299e1;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+        }
+        button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #3182ce;
+        }
+        .error {
+            background-color: #fff5f5;
+            color: #e53e3e;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 25px;
+            border-left: 4px solid #e53e3e;
+        }
+        .info {
+            background-color: #ebf8ff;
+            color: #3182ce;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 25px;
+            border-left: 4px solid #4299e1;
+        }
+        .help-text {
+            font-size: 14px;
+            color: #718096;
+            margin-top: 6px;
+        }
+        .model-info {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f7fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .model-info h3 {
+            margin-top: 0;
+            color: #2d3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>ChatAnySite Setup</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form method="POST">
+            <div class="form-group">
+                <label for="hf_token">Hugging Face Token:</label>
+                <input type="password" id="hf_token" name="hf_token" required 
+                       placeholder="Enter your Hugging Face API token">
+                <div class="help-text">
+                    Get your token from <a href="https://huggingface.co/settings/tokens" target="_blank">Hugging Face settings</a>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="sitemap_url">Sitemap URL:</label>
+                <select id="sitemap_url" name="sitemap_url" onchange="toggleNewInput(this.value)" required>
+                <option value="">-- Select Sitemap --</option>
+                <option value="__new__">+ New Sitemap</option>
+                {% for sitemap in cached_sitemaps %}
+                    <option value="{{ sitemap }}"
+                        {% if session.get('sitemap_url') == sitemap %}selected{% endif %}>
+                        {{ sitemap }}
+                    </option>
+                {% endfor %}
+            </select>
+            <input type="url" id="new_sitemap" name="new_sitemap"
+                   placeholder="Enter new sitemap URL"
+                   style="display:none; margin-top: 10px;"
+                   value="{{ session.get('sitemap_url', '') if session.get('sitemap_url') not in cached_sitemaps else '' }}">
+
+                <div class="help-text">
+                    Must be a valid XML sitemap URL
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="chat_model">Chat Model:</label>
+                <select id="chat_model" name="chat_model" required>
+                    <option value="">-- Select a chat model --</option>
+                    {% for model in hf_models %}
+                        <option value="{{ model }}" 
+                            {% if session.get('chat_model') == model %}selected{% endif %}>
+                            {{ model }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="help-text">
+                    Select a language model for generating responses
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="embedding_model">Embedding Model:</label>
+                <select id="embedding_model" name="embedding_model" required>
+                    <option value="">-- Select an embedding model --</option>
+                    {% for model in embedding_models %}
+                        <option value="{{ model }}" 
+                            {% if session.get('embedding_model') == model %}selected{% endif %}>
+                            {{ model }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="help-text">
+                    Select a model for document embeddings
+                </div>
+            </div>
+            
+            <button type="submit">Start Chatting</button>
+        </form>
+        
+        <div class="model-info">
+            <h3>About Models:</h3>
+            <p><strong>Chat Models</strong> are used to generate responses to your questions. Popular options include Mistral, Gemma, and Llama 2.</p>
+            <p><strong>Embedding Models</strong> are used to understand document content and find relevant information. They process your sitemap content.</p>
+            <p><strong>Note:</strong> Some larger models may take longer to respond. For faster responses, try smaller models like all-MiniLM-L6-v2 for embeddings.</p>
+        </div>
+    </div>
+    <script>
+function toggleNewInput(val) {
+    var input = document.getElementById('new_sitemap');
+    if (val === '__new__') {
+        input.style.display = 'block';
+        input.required = true;
+    } else {
+        input.style.display = 'none';
+        input.required = false;
+        input.value = '';
+    }
+}
+</script>
+</body>
+</html>
+
+

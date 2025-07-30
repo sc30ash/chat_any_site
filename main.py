@@ -1,5 +1,10 @@
 import os
+os.environ["OPENAI_API_KEY"] = "sk-efgh5678abcd1234efgh5678abcd1234efgh5678"
 from urllib.parse import urlparse
+import asyncio
+import platform
+if platform.system()=='Windows':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import click
 from langchain.chains import RetrievalQA
@@ -108,7 +113,7 @@ class ChatAnySite:
     type=click.Choice(openai_models, case_sensitive=False),
     help="https://platform.openai.com/docs/models",
 )
-def main(open_api_key, sitemap_url, model):
+def main(sitemap_url, model, open_api_key="sk-efgh5678abcd1234efgh5678abcd1234efgh5678"):
     chatbot = ChatAnySite(open_api_key, sitemap_url, model)
     chatbot.start_chat()
 
