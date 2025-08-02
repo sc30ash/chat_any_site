@@ -200,3 +200,11 @@ Temporary Items
 /chat.html
 /index.html
 /main.py
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+/chat_any_site.zip
+/key.txt
+/application.py
